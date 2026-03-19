@@ -121,17 +121,80 @@ Interface interactive : **http://localhost:8300/docs** (Swagger UI)
 
 ```
 Serveur-TDC/
-├── main.py                  # Point d'entrée de l'application FastAPI
-├── requirements.txt         # Dépendances Python
-├── .env                     # Variables d'environnement (non versionné)
-├── WatermarkingModule/      # Module de filigrane DCT
-├── core/                    # Logique centrale (config, sécurité, JWT...)
-├── db/                      # Connexion et modèles MongoDB
-├── routers/                 # Routes FastAPI (endpoints)
-└── services/                # Services métier (chiffrement, accès...)
+│
+├── main.py                        # Point d'entrée FastAPI — enregistrement des routers
+│
+├── core/
+│   ├── security.py                # Hash mdp, vérification token, récupération utilisateur
+│   └── __init__.py
+│
+├── db/
+│   ├── client.py                  # Connexion MongoDB
+│   ├── collections.py             # Références aux collections (users, tokens, keys, posts)
+│   └── __init__.py
+│
+├── routers/
+│   ├── auth.py                    # Inscription, connexion, déconnexion
+│   ├── posts.py                   # Ajout et lecture de posts chiffrés
+│   ├── access.py                  # Autorisation et révocation d'accès par image
+│   ├── watermark.py               # Application et extraction de filigrane DCT
+│   └── __init__.py
+│
+├── services/
+│   ├── crypto.py                  # Chiffrement / déchiffrement AES-256-GCM
+│   ├── watermark_svc.py           # Logique de filigrane (DCT)
+│   └── __init__.py
+│
+├── WatermarkingModule/
+│   ├── engine.py                  # Moteur DCT d'encodage / décodage du filigrane
+│   ├── utils.py                   # Utilitaires image pour le watermarking
+│   └── __init__.py
+│
+├── .env                           # Variables d'environnement (non versionné)
+├── requirements.txt               # Dépendances Python
+└── venv/                          # Environnement virtuel (non versionné)
 ```
 
 ---
+## 🔌 API — Endpoints
+ 
+### 🔐 Authentification — `/auth`
+ 
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/auth/register` | Créer un compte utilisateur |
+| `POST` | `/auth/login` | Se connecter et obtenir un token (24h) |
+| `POST` | `/auth/logout` | Invalider un token |
+
+---
+### 📸 Posts — `/add_post`, `/posts/{image_id}`
+ 
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/add_post` | Publier une image chiffrée |
+| `POST` | `/posts/{image_id}` | Lire un post (déchiffré si autorisé) |
+
+---
+
+### 🛡️ Contrôle d'accès — `/authorize`, `/revoke`
+ 
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/authorize/{image_id}` | Accorder l'accès à des utilisateurs |
+| `DELETE` | `/revoke/{image_id}/{target_username}` | Révoquer l'accès d'un utilisateur |
+
+
+---
+
+
+
+### 🎨 Filigrane DCT — `/trust`
+ 
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/trust/watermark` | Appliquer un filigrane DCT à une image |
+| `POST` | `/trust/extract` | Extraire le filigrane d'une image |
+ 
 
 ## 👤 Auteur
 
