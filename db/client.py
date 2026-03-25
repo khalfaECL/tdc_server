@@ -9,7 +9,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 def get_client() -> MongoClient:
     try:
         print("[INFO] Connexion à MongoDB...")
-        client = MongoClient(MONGO_URI)
+        client = MongoClient(MONGO_URI, tls=True, tlsAllowInvalidCertificates=True)
         print("[OK] Connexion établie.")
         return client
     except errors.ConnectionFailure as e:
