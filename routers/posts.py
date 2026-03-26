@@ -71,6 +71,66 @@ async def add_post(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/delete_post/{image_id}")
+async def delete_post(image_id: str, payload: dict = Body(default={})):
+    try:
+        username = payload.get("username")
+        token    = payload.get("token")
+
+        if not username or not token or not verify_token(username, token):
+            raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+        key_data = keys_col.find_one({"image_id": image_id})
+        if not key_data:
+            raise HTTPException(status_code=404, detail="Post non trouvé.")
+
+        if key_data.get("owner_username") != username:
+            raise HTTPException(status_code=403, detail="Action non autorisée.")
+
+        posts_col.delete_one({"image_id": image_id})
+        keys_col.delete_one({"image_id": image_id})
+
+        return {"message": "Post supprimé avec succès.", "image_id": image_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/feed")
+def get_feed(payload: dict = Body(default={})):
+    try:
+        username = payload.get("username")
+        token    = payload.get("token")
+
+        if not username or not token or not verify_token(username, token):
+            raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+        keys = list(keys_col.find({"valid": True}, {"_id": 0}))
+        feed = []
+        for k in keys:
+            post = posts_col.find_one({"image_id": k["image_id"]}, {"image": 0, "_id": 0})
+            if post:
+                created_at = k.get("created_at")
+                feed.append({
+                    "image_id":       k["image_id"],
+                    "owner_username": k["owner_username"],
+                    "description":    post.get("caption", ""),
+                    "caption":        post.get("caption", ""),
+                    "authorized":     k.get("autorisations", []),
+                    "date_creation":  created_at.isoformat() if created_at else "",
+                    "preview_uri":    None,
+                })
+        feed.sort(key=lambda x: x.get("date_creation", ""), reverse=True)
+        return {"posts": feed}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/posts/{image_id}")
 def get_post(image_id: str, payload: dict = Body(default={})):
     try:
