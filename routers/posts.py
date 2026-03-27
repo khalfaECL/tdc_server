@@ -19,7 +19,9 @@ async def add_post(
     token: str = Form(...),
     caption: str = Form(...),
     image: UploadFile = File(...),
-    authorized_users: str = Form(default="")
+    authorized_users: str = Form(default=""),
+    ephemeral_duration: int = Form(default=5),
+    max_views: int = Form(default=3),
 ):
     try:
         if not verify_token(owner_username, token):
@@ -50,13 +52,15 @@ async def add_post(
         })
 
         keys_col.insert_one({
-            "image_id": image_id,
-            "user_id": user_id,
-            "owner_username": owner_username,
-            "key": generated_key,
-            "valid": True,
-            "autorisations": authorized_list,
-            "created_at": datetime.utcnow()
+            "image_id":          image_id,
+            "user_id":           user_id,
+            "owner_username":    owner_username,
+            "key":               generated_key,
+            "valid":             True,
+            "autorisations":     authorized_list,
+            "ephemeral_duration": ephemeral_duration,
+            "max_views":         max_views,
+            "created_at":        datetime.utcnow()
         })
 
         return {
@@ -114,14 +118,16 @@ def my_posts(payload: dict = Body(default={})):
             if post:
                 created_at = k.get("created_at")
                 photos.append({
-                    "image_id":      k["image_id"],
-                    "description":   post.get("caption", ""),
-                    "date_creation": created_at.isoformat() if created_at else "",
-                    "preview_uri":   None,
-                    "authorized":    k.get("autorisations", []),
-                    "access_count":  0,
-                    "blocked":       k.get("blocked", False),
-                    "history":       [],
+                    "image_id":          k["image_id"],
+                    "description":       post.get("caption", ""),
+                    "date_creation":     created_at.isoformat() if created_at else "",
+                    "preview_uri":       None,
+                    "authorized":        k.get("autorisations", []),
+                    "access_count":      0,
+                    "blocked":           k.get("blocked", False),
+                    "history":           [],
+                    "ephemeralDuration": k.get("ephemeral_duration", 5),
+                    "maxViews":          k.get("max_views", 3),
                 })
         photos.sort(key=lambda x: x.get("date_creation", ""), reverse=True)
         return {"photos": photos}
@@ -148,13 +154,15 @@ def get_feed(payload: dict = Body(default={})):
             if post:
                 created_at = k.get("created_at")
                 feed.append({
-                    "image_id":       k["image_id"],
-                    "owner_username": k["owner_username"],
-                    "description":    post.get("caption", ""),
-                    "caption":        post.get("caption", ""),
-                    "authorized":     k.get("autorisations", []),
-                    "date_creation":  created_at.isoformat() if created_at else "",
-                    "preview_uri":    None,
+                    "image_id":          k["image_id"],
+                    "owner_username":    k["owner_username"],
+                    "description":       post.get("caption", ""),
+                    "caption":           post.get("caption", ""),
+                    "authorized":        k.get("autorisations", []),
+                    "date_creation":     created_at.isoformat() if created_at else "",
+                    "preview_uri":       None,
+                    "ephemeralDuration": k.get("ephemeral_duration", 5),
+                    "maxViews":          k.get("max_views", 3),
                 })
         feed.sort(key=lambda x: x.get("date_creation", ""), reverse=True)
         return {"posts": feed}
@@ -184,18 +192,33 @@ def get_post(image_id: str, payload: dict = Body(default={})):
         has_valid_token = username and token and verify_token(username, token)
 
         if has_valid_token and (is_owner or is_authorized):
+            # Enforce max_views for non-owners
+            if not is_owner:
+                max_views = key_data.get("max_views", 3)
+                view_count = history_col.count_documents({
+                    "image_id": image_id,
+                    "viewer_username": username
+                })
+                if view_count >= max_views:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Nombre maximum de visualisations atteint ({max_views})."
+                    )
+
             decrypted_bytes = decrypt_image(post["image"], key_data["key"])
             return {
-                "image_id": image_id,
-                "caption": post["caption"],
-                "image": base64.b64encode(decrypted_bytes).decode(),
-                "decrypted": True
+                "image_id":          image_id,
+                "caption":           post["caption"],
+                "image":             base64.b64encode(decrypted_bytes).decode(),
+                "decrypted":         True,
+                "ephemeral_duration": key_data.get("ephemeral_duration", 5),
+                "max_views":         key_data.get("max_views", 3),
             }
         else:
             return {
-                "image_id": image_id,
-                "caption": post["caption"],
-                "image": post["image"],
+                "image_id":  image_id,
+                "caption":   post["caption"],
+                "image":     post["image"],
                 "decrypted": False
             }
 
