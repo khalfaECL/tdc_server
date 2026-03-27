@@ -192,7 +192,7 @@ def get_post(image_id: str, payload: dict = Body(default={})):
         has_valid_token = username and token and verify_token(username, token)
 
         if has_valid_token and (is_owner or is_authorized):
-            # Enforce max_views for non-owners
+            # Enforce max_views and cooldown for non-owners
             if not is_owner:
                 max_views = key_data.get("max_views", 3)
                 view_count = history_col.count_documents({
@@ -204,6 +204,22 @@ def get_post(image_id: str, payload: dict = Body(default={})):
                         status_code=403,
                         detail=f"Nombre maximum de visualisations atteint ({max_views})."
                     )
+
+                cooldown_min = int(payload.get("cooldown_minutes", 0))
+                if cooldown_min > 0:
+                    last = history_col.find_one(
+                        {"image_id": image_id, "viewer_username": username},
+                        sort=[("accessed_at", -1)]
+                    )
+                    if last:
+                        last_time = datetime.fromisoformat(last["accessed_at"])
+                        elapsed = (datetime.utcnow() - last_time).total_seconds() / 60
+                        if elapsed < cooldown_min:
+                            remain = max(1, round(cooldown_min - elapsed))
+                            raise HTTPException(
+                                status_code=429,
+                                detail=f"Délai non respecté. Réessayez dans {remain} minute(s)."
+                            )
 
             decrypted_bytes = decrypt_image(post["image"], key_data["key"])
             return {
