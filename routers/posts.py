@@ -5,7 +5,7 @@ import base64
 import os
 import uuid
 
-from db import keys_col, posts_col, users_col
+from db import keys_col, posts_col, users_col, history_col
 from core.security import verify_token
 from services.crypto import encrypt_image, decrypt_image
 
@@ -164,6 +164,75 @@ def get_post(image_id: str, payload: dict = Body(default={})):
                 "image": post["image"],
                 "decrypted": False
             }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/log_access")
+def log_access(payload: dict = Body(default={})):
+    try:
+        viewer    = payload.get("viewer_username")
+        owner     = payload.get("owner_username")
+        image_id  = payload.get("image_id")
+        desc      = payload.get("image_description", "")
+        token     = payload.get("token")
+        acc_type  = payload.get("type", "app")
+
+        if not viewer or not token or not verify_token(viewer, token):
+            raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+        history_col.insert_one({
+            "image_id":          image_id,
+            "image_description": desc,
+            "viewer_username":   viewer,
+            "owner_username":    owner,
+            "accessed_at":       datetime.utcnow().isoformat(),
+            "type":              acc_type,
+        })
+        return {"message": "Accès enregistré."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/get_history")
+def get_history(payload: dict = Body(default={})):
+    """History of accesses to images owned by username."""
+    try:
+        owner = payload.get("owner_username")
+        token = payload.get("token")
+
+        if not owner or not token or not verify_token(owner, token):
+            raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+        entries = list(history_col.find({"owner_username": owner}, {"_id": 0}))
+        entries.sort(key=lambda x: x.get("accessed_at", ""), reverse=True)
+        return {"accesses": entries}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/get_my_accesses")
+def get_my_accesses(payload: dict = Body(default={})):
+    """History of images accessed by username."""
+    try:
+        viewer = payload.get("viewer_username")
+        token  = payload.get("token")
+
+        if not viewer or not token or not verify_token(viewer, token):
+            raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+        entries = list(history_col.find({"viewer_username": viewer}, {"_id": 0}))
+        entries.sort(key=lambda x: x.get("accessed_at", ""), reverse=True)
+        return {"accesses": entries}
 
     except HTTPException:
         raise
