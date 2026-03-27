@@ -199,6 +199,7 @@ def get_post(image_id: str, payload: dict = Body(default={})):
                     "image_id": image_id,
                     "viewer_username": username
                 })
+                print(f"[DEBUG] viewer={username} image={image_id} view_count={view_count} max_views={max_views}")
                 if view_count >= max_views:
                     raise HTTPException(
                         status_code=403,
@@ -206,6 +207,7 @@ def get_post(image_id: str, payload: dict = Body(default={})):
                     )
 
                 cooldown_min = int(payload.get("cooldown_minutes", 0))
+                print(f"[DEBUG] cooldown_min={cooldown_min}")
                 if cooldown_min > 0:
                     last = history_col.find_one(
                         {"image_id": image_id, "viewer_username": username},
