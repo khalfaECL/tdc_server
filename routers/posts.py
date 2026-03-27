@@ -98,6 +98,40 @@ async def delete_post(image_id: str, payload: dict = Body(default={})):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/my_posts")
+def my_posts(payload: dict = Body(default={})):
+    try:
+        username = payload.get("username")
+        token    = payload.get("token")
+
+        if not username or not token or not verify_token(username, token):
+            raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+        keys = list(keys_col.find({"owner_username": username, "valid": True}, {"_id": 0}))
+        photos = []
+        for k in keys:
+            post = posts_col.find_one({"image_id": k["image_id"]}, {"image": 0, "_id": 0})
+            if post:
+                created_at = k.get("created_at")
+                photos.append({
+                    "image_id":      k["image_id"],
+                    "description":   post.get("caption", ""),
+                    "date_creation": created_at.isoformat() if created_at else "",
+                    "preview_uri":   None,
+                    "authorized":    k.get("autorisations", []),
+                    "access_count":  0,
+                    "blocked":       k.get("blocked", False),
+                    "history":       [],
+                })
+        photos.sort(key=lambda x: x.get("date_creation", ""), reverse=True)
+        return {"photos": photos}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/feed")
 def get_feed(payload: dict = Body(default={})):
     try:
