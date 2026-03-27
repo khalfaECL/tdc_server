@@ -222,13 +222,25 @@ def get_post(image_id: str, payload: dict = Body(default={})):
                             )
 
             decrypted_bytes = decrypt_image(post["image"], key_data["key"])
+
+            # Record access server-side (ensures cooldown is enforced on next request)
+            if not is_owner:
+                history_col.insert_one({
+                    "image_id":          image_id,
+                    "image_description": post.get("caption", ""),
+                    "viewer_username":   username,
+                    "owner_username":    key_data.get("owner_username", ""),
+                    "accessed_at":       datetime.utcnow().isoformat(),
+                    "type":              "app",
+                })
+
             return {
-                "image_id":          image_id,
-                "caption":           post["caption"],
-                "image":             base64.b64encode(decrypted_bytes).decode(),
-                "decrypted":         True,
+                "image_id":           image_id,
+                "caption":            post["caption"],
+                "image":              base64.b64encode(decrypted_bytes).decode(),
+                "decrypted":          True,
                 "ephemeral_duration": key_data.get("ephemeral_duration", 5),
-                "max_views":         key_data.get("max_views", 3),
+                "max_views":          key_data.get("max_views", 3),
             }
         else:
             return {
