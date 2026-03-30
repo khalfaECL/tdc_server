@@ -17,7 +17,7 @@ async def add_post(
     user_id: str = Form(...),
     owner_username: str = Form(...),
     token: str = Form(...),
-    caption: str = Form(default=""),
+    caption: Optional[str] = Form(default=None),
     image: UploadFile = File(...),
     authorized_users: str = Form(default=""),
     ephemeral_duration: int = Form(default=5),
@@ -48,7 +48,7 @@ async def add_post(
         posts_col.insert_one({
             "image_id": image_id,
             "user_id": user_id,
-            "caption": caption,
+            "caption": caption or "",
             "image": encrypted_image
         })
 
