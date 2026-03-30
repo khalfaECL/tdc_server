@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from db import users_col, tokens_col
+from db import users_col, tokens_col, posts_col, keys_col, requests_col, history_col
 from core.security import hash_password, verify_password, get_user
 from secrets import token_hex
 from datetime import datetime, timedelta
@@ -82,3 +82,28 @@ def logout(payload: dict):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Token introuvable.")
     return {"message": "Déconnexion réussie."}
+
+
+@router.delete("/delete_account")
+def delete_account(payload: dict):
+    username = payload.get("username")
+    token    = payload.get("token")
+
+    if not username or not token or not verify_token(username, token):
+        raise HTTPException(status_code=403, detail="Token invalide ou expiré.")
+
+    user = get_user(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    # Récupérer les image_ids du user pour nettoyer posts + keys
+    image_ids = [k["image_id"] for k in keys_col.find({"owner_username": username}, {"image_id": 1})]
+
+    posts_col.delete_many({"image_id": {"$in": image_ids}})
+    keys_col.delete_many({"owner_username": username})
+    history_col.delete_many({"owner_username": username})
+    requests_col.delete_many({"$or": [{"owner_username": username}, {"requester_username": username}]})
+    tokens_col.delete_many({"username": username})
+    users_col.delete_one({"username": username})
+
+    return {"message": "Compte et données supprimés."}
