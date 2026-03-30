@@ -22,6 +22,7 @@ async def add_post(
     authorized_users: str = Form(default=""),
     ephemeral_duration: int = Form(default=5),
     max_views: int = Form(default=3),
+    view_cooldown: int = Form(default=10),
 ):
     try:
         if not verify_token(owner_username, token):
@@ -60,6 +61,7 @@ async def add_post(
             "autorisations":     authorized_list,
             "ephemeral_duration": ephemeral_duration,
             "max_views":         max_views,
+            "view_cooldown":     view_cooldown,
             "created_at":        datetime.utcnow()
         })
 
@@ -128,6 +130,7 @@ def my_posts(payload: dict = Body(default={})):
                     "history":           [],
                     "ephemeralDuration": k.get("ephemeral_duration", 5),
                     "maxViews":          k.get("max_views", 3),
+                    "view_cooldown":     k.get("view_cooldown", 10),
                 })
         photos.sort(key=lambda x: x.get("date_creation", ""), reverse=True)
         return {"photos": photos}
@@ -163,6 +166,7 @@ def get_feed(payload: dict = Body(default={})):
                     "preview_uri":       None,
                     "ephemeralDuration": k.get("ephemeral_duration", 5),
                     "maxViews":          k.get("max_views", 3),
+                    "view_cooldown":     k.get("view_cooldown", 10),
                 })
         feed.sort(key=lambda x: x.get("date_creation", ""), reverse=True)
         return {"posts": feed}
@@ -206,7 +210,7 @@ def get_post(image_id: str, payload: dict = Body(default={})):
                         detail=f"Nombre maximum de visualisations atteint ({max_views})."
                     )
 
-                cooldown_min = int(payload.get("cooldown_minutes", 0))
+                cooldown_min = int(key_data.get("view_cooldown", 10))
                 print(f"[DEBUG] cooldown_min={cooldown_min}")
                 if cooldown_min > 0:
                     last = history_col.find_one(
