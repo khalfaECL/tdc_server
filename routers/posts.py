@@ -17,7 +17,7 @@ async def add_post(
     user_id: str = Form(...),
     owner_username: str = Form(...),
     token: str = Form(...),
-    caption: str = Form(...),
+    caption: str = Form(default=""),
     image: UploadFile = File(...),
     authorized_users: str = Form(default=""),
     ephemeral_duration: int = Form(default=5),
