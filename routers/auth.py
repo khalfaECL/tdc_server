@@ -13,10 +13,26 @@ class UserIn(BaseModel):
     password: str
 
 
+def validate_password(password: str):
+    import re
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères.")
+    if not re.search(r'[A-Z]', password):
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins une majuscule.")
+    if not re.search(r'[0-9]', password):
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins un chiffre.")
+    if not re.search(r'[^A-Za-z0-9]', password):
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins un caractère spécial.")
+
 @router.post("/register")
 def register(user: UserIn):
+    if len(user.username.strip()) < 3:
+        raise HTTPException(status_code=400, detail="L'identifiant doit contenir au moins 3 caractères.")
+    if ' ' in user.username:
+        raise HTTPException(status_code=400, detail="L'identifiant ne peut pas contenir d'espaces.")
+    validate_password(user.password)
     if get_user(user.username):
-        raise HTTPException(status_code=400, detail="Utilisateur déjà existant")
+        raise HTTPException(status_code=400, detail="Cet identifiant est déjà utilisé.")
 
     user_id = str(uuid.uuid4())
 
