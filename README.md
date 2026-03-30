@@ -261,8 +261,8 @@ Documentation Swagger : `http://localhost:8300/docs`
 ---
 
 ## Auteurs
-
-**Marwane Agrebi** — [@Marwanagr](https://github.com/Marwanagr)
+**Youssef Khalfa** — [@khalfaECL](https://github.com/khalfaECL)
+**Marwane Agrebi**
 **Malek Chammakhi**
 **Amani Krid**
-**Youssef Khalfa** — [@khalfaECL](https://github.com/khalfaECL)
+
