@@ -80,9 +80,10 @@ Serveur-TDC/
 
 | Méthode | Endpoint | Corps | Description |
 |---|---|---|---|
-| `POST` | `/auth/register` | `{ username, password }` | Créer un compte |
+| `POST` | `/auth/register` | `{ username, password }` | Créer un compte (username unique, mot de passe fort requis) |
 | `POST` | `/auth/login` | `{ username, password }` | Connexion → retourne token 24h |
 | `POST` | `/auth/logout` | `{ token }` | Invalider le token |
+| `DELETE` | `/auth/delete_account` | `{ username, token }` | Supprimer le compte et toutes les données associées |
 
 ### Images `/posts`
 
@@ -204,11 +205,13 @@ Vérifier que le serveur fonctionne en ouvrant `https://<votre-service>.onrender
 
 ### Étape 6 — Configurer le client Secugram
 
-Dans le repo frontend (`secugram-rn`), ouvrir `src/api/index.js` et mettre à jour l'URL de base :
+Dans le repo frontend ([khalfaECL/Front-End](https://github.com/khalfaECL/Front-End)), ouvrir `secugram-rn/src/config.js` et mettre à jour l'URL de base :
 
 ```js
-const API_BASE_URL = 'https://<votre-service>.onrender.com';
+export const API_BASE_URL = 'https://<votre-service>.onrender.com';
 ```
+
+Le frontend web est déployé séparément comme Static Site sur Render (voir le README du repo frontend).
 
 ---
 
